@@ -1,0 +1,21 @@
+# Logs
+poker_logs_*.txt
+
+# Système
+Thumbs.db
+Desktop.ini
+.DS_Store
+._*
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Fichiers temporaires Google Drive
+.tmp.driveupload/
+.tmp.drivedownload/
+
+# Config locale
+.env
+.env.local

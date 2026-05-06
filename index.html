@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Texas Hold'em Poker V4</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Écran de configuration -->
+  <div id="setup-screen" class="setup-screen">
+    <div class="setup-card">
+      <h1>🃏 Texas Hold'em Poker <span style="font-size:16px;color:#f0d060">V4</span></h1>
+      <p class="setup-subtitle">Multijoueur local — Humains & PNJ — No / Pot / Fixed Limit</p>
+
+      <div class="setup-section">
+        <h3>Ajouter des joueurs</h3>
+        <div class="add-player-row">
+          <div class="player-type-toggle">
+            <button id="toggle-human" class="toggle-btn active">👤 Humain</button>
+            <button id="toggle-npc" class="toggle-btn">🤖 PNJ</button>
+          </div>
+          <input type="text" id="player-name-input" placeholder="Nom du joueur..." maxlength="20" autocomplete="off">
+          <button id="add-player-btn" class="btn btn-primary">Ajouter</button>
+        </div>
+        <!-- Grille de sélection PNJ -->
+        <div id="npc-grid" class="npc-grid hidden">
+          <p class="npc-grid-hint">Choisis un personnage (tu peux en prendre plusieurs fois) :</p>
+          <div id="npc-cards" class="npc-cards"></div>
+        </div>
+        <ul id="player-list" class="player-list"></ul>
+        <p id="player-count-msg" class="hint">Minimum 2 joueurs requis</p>
+      </div>
+
+      <div class="setup-section">
+        <h3>Mode de limite <button id="toggle-limit-info" class="btn-info-icon" title="Explications">ℹ️</button></h3>
+        <div class="player-type-toggle limit-mode-toggle limit-triple">
+          <button id="toggle-nolimit" class="toggle-btn active">💰 No Limit</button>
+          <button id="toggle-potlimit" class="toggle-btn">📏 Pot Limit</button>
+          <button id="toggle-fixedlimit" class="toggle-btn">🔒 Fixed Limit</button>
+        </div>
+        <div id="limit-info" class="limit-info hidden">
+          <p><b>💰 No Limit</b> : Tu peux miser tous tes jetons à tout moment (tapis). C'est le mode le plus agressif et stratégique.</p>
+          <p><b>📏 Pot Limit</b> : La relance max est limitée à la taille du pot. Plus contrôlé que le No Limit, mais plus de liberté que le Fixed Limit.</p>
+          <p><b>🔒 Fixed Limit</b> : Les mises et relances sont fixes (1×BB preflop/flop, 2×BB turn/river). Maximum 4 relances par tour. Le mode le plus mathématique.</p>
+        </div>
+      </div>
+
+      <div class="setup-section config-row">
+        <div class="config-item">
+          <label for="starting-chips">Jetons de départ</label>
+          <input type="number" id="starting-chips" value="1000" min="100" max="100000" step="100">
+        </div>
+        <div class="config-item">
+          <label for="small-blind">Small blind</label>
+          <input type="number" id="small-blind" value="10" min="1" max="1000" step="5">
+        </div>
+        <div class="config-item">
+          <label for="big-blind">Big blind</label>
+          <input type="number" id="big-blind" value="20" min="2" max="2000" step="5">
+        </div>
+      </div>
+
+      <button id="start-game-btn" class="btn btn-start" disabled>Commencer la partie</button>
+    </div>
+  </div>
+
+  <!-- Écran de jeu -->
+  <div id="game-screen" class="game-screen hidden">
+    <!-- En-tête -->
+    <div class="game-header">
+      <div class="game-info">
+        <span id="phase-label" class="phase-label">Pré-flop</span>
+      </div>
+      <div class="game-controls">
+        <span class="chip-legend">
+          <span class="chip-dot chip-white"></span>1
+          <span class="chip-dot chip-red"></span>5
+          <span class="chip-dot chip-blue"></span>10
+          <span class="chip-dot chip-green"></span>25
+          <span class="chip-dot chip-purple"></span>100
+          <span class="chip-dot chip-gold"></span>500
+        </span>
+        <button id="toggle-advice-btn" class="btn btn-sm">💡 Conseils</button>
+        <button id="show-log-btn" class="btn btn-sm">📋 Log</button>
+        <button id="new-hand-btn" class="btn btn-sm">Nouvelle main</button>
+        <button id="end-game-btn" class="btn btn-sm btn-danger">Quitter</button>
+      </div>
+    </div>
+
+    <!-- Table de poker -->
+    <div class="table-container">
+      <div class="poker-table">
+        <!-- Pile de jetons du pot (au centre) -->
+        <div id="pot-area" class="pot-area">
+          <span id="pot-display" class="pot-display">Pot : 0</span>
+          <div id="pot-stack" class="chip-stack pot-stack"></div>
+        </div>
+
+        <!-- Zone des cartes communes -->
+        <div class="community-area">
+          <div class="community-label">Cartes communes</div>
+          <div id="community-cards" class="community-cards">
+            <div class="card-placeholder"></div>
+            <div class="card-placeholder"></div>
+            <div class="card-placeholder"></div>
+            <div class="card-placeholder"></div>
+            <div class="card-placeholder"></div>
+          </div>
+        </div>
+
+        <!-- Joueurs positionnés autour de la table -->
+        <div id="seats-container" class="seats-container"></div>
+      </div>
+    </div>
+
+    <!-- Contrôles d'action pour le joueur courant -->
+    <div id="action-bar" class="action-bar hidden">
+      <div id="current-player-indicator" class="current-player"></div>
+      <div class="action-buttons">
+        <button id="fold-btn" class="btn btn-action btn-fold">Se coucher</button>
+        <button id="check-call-btn" class="btn btn-action btn-check">Parole</button>
+        <button id="raise-btn" class="btn btn-action btn-raise">Relancer</button>
+        <div id="raise-controls" class="raise-controls hidden">
+          <input type="range" id="raise-slider" min="0" max="1000" value="40" step="5">
+          <span id="raise-amount" class="raise-amount">40</span>
+          <button id="confirm-raise-btn" class="btn btn-action btn-confirm">Confirmer</button>
+          <button id="cancel-raise-btn" class="btn btn-sm">Annuler</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay pour voir ses cartes -->
+  <div id="card-overlay" class="card-overlay hidden">
+    <div class="card-overlay-content">
+      <p class="overlay-player-name" id="overlay-player-name"></p>
+      <div id="overlay-cards" class="overlay-cards"></div>
+      <p class="overlay-hint">Les autres joueurs : détournez le regard !</p>
+      <button id="hide-cards-btn" class="btn btn-primary">Cacher mes cartes</button>
+      <div id="overlay-timer" class="overlay-timer"></div>
+    </div>
+  </div>
+
+  <!-- Panneau de log -->
+  <div id="log-panel" class="log-panel hidden">
+    <div class="log-header">
+      <h3>Historique</h3>
+      <div class="log-header-buttons">
+        <button id="export-log-btn" class="btn btn-sm">📥 Exporter</button>
+        <button id="close-log-btn" class="btn btn-sm">✕</button>
+      </div>
+    </div>
+    <div id="log-content" class="log-content"></div>
+  </div>
+
+  <!-- Panneau de conseils -->
+  <div id="advice-panel" class="advice-panel hidden">
+    <div class="advice-header">
+      <h3>💡 Conseils stratégiques</h3>
+      <button id="close-advice-btn" class="btn btn-sm">✕</button>
+    </div>
+    <div id="advice-content" class="advice-content"></div>
+  </div>
+
+  <!-- Overlay de fin de main (vainqueur) -->
+  <div id="winner-overlay" class="winner-overlay hidden">
+    <div class="winner-card">
+      <h2 id="winner-title"></h2>
+      <div id="showdown-cards" class="showdown-cards"></div>
+      <p id="winner-amount"></p>
+      <button id="next-hand-btn" class="btn btn-start">Main suivante</button>
+    </div>
+  </div>
+
+  <script src="npcs.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
