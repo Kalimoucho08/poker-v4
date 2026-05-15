@@ -502,6 +502,17 @@ function renderActionBar() {
   raiseBtn.disabled = !canRaise;
   if (raiseControls) raiseControls.classList.add('hidden');
   raiseBtn.classList.remove('hidden');
+
+  // Bouton all-in : visible si le joueur a des jetons (No Limit / Pot Limit uniquement)
+  const allinBtn = document.getElementById('allin-btn');
+  if (allinBtn) {
+    const showAllin = !isFixed && cp.chips > 0 && !cp.isAllIn;
+    allinBtn.classList.toggle('hidden', !showAllin);
+    if (showAllin) {
+      allinBtn.textContent = cp.chips <= (state.currentBet - cp.currentBet) + state.minRaise ? 'Tapis !' : 'Tapis !';
+    }
+  }
+
   document.getElementById('fold-btn').classList.remove('hidden');
   checkCallBtn.classList.remove('hidden');
 }
@@ -581,14 +592,22 @@ function renderLog() {
 }
 
 function exportLogs() {
+  if (logEntries.length === 0) {
+    alert('Aucun log à exporter.');
+    return;
+  }
   const text = logEntries.map(e => `[${e.time}] ${e.msg}`).join('\n');
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const blob = new Blob([text], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = `poker_logs_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
 }
 
 function renderAll() {
@@ -1492,13 +1511,17 @@ function endGame() {
 }
 
 function downloadText(text, filename) {
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const blob = new Blob([text], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
 }
 
 function resetGame() {
@@ -1717,6 +1740,7 @@ function initEventListeners() {
     document.getElementById('raise-btn').classList.add('hidden');
     document.getElementById('fold-btn').classList.add('hidden');
     document.getElementById('check-call-btn').classList.add('hidden');
+    document.getElementById('allin-btn').classList.add('hidden');
 
     slider.oninput = () => {
       amountSpan.textContent = parseInt(slider.value);
@@ -1733,6 +1757,7 @@ function initEventListeners() {
     document.getElementById('raise-btn').classList.remove('hidden');
     document.getElementById('fold-btn').classList.remove('hidden');
     document.getElementById('check-call-btn').classList.remove('hidden');
+    document.getElementById('allin-btn').classList.remove('hidden');
 
     playerRaise(raiseBy);
     renderAll();
@@ -1743,6 +1768,31 @@ function initEventListeners() {
     document.getElementById('raise-btn').classList.remove('hidden');
     document.getElementById('fold-btn').classList.remove('hidden');
     document.getElementById('check-call-btn').classList.remove('hidden');
+    document.getElementById('allin-btn').classList.remove('hidden');
+  });
+
+  // Bouton all-in
+  document.getElementById('allin-btn').addEventListener('click', () => {
+    const cp = state.players[state.currentPlayerIndex];
+    if (!cp || cp.chips === 0 || cp.isAllIn) return;
+
+    const toCall = state.currentBet - cp.currentBet;
+    const allInTotal = cp.chips + cp.currentBet;
+
+    if (!confirm(`⚠️ Tout miser — ${cp.chips} jetons (all-in) ?`)) return;
+
+    // Cacher les contrôles de relance si visibles
+    document.getElementById('raise-controls').classList.add('hidden');
+
+    if (toCall >= cp.chips) {
+      // Déjà couvert par le call (l'all-in est juste un call complet)
+      playerCheckCall();
+    } else {
+      // Relancer all-in : le montant = tout le stack en plus du call
+      const raiseBy = cp.chips - toCall;
+      playerRaise(raiseBy);
+    }
+    renderAll();
   });
 
   // Overlay cartes
@@ -1809,6 +1859,12 @@ function initEventListeners() {
       const raiseControls = document.getElementById('raise-controls');
       if (raiseControls.classList.contains('hidden')) {
         document.getElementById('raise-btn').click();
+      }
+    } else if (e.key === 'a' || e.key === 'A') {
+      e.preventDefault();
+      const allinBtn = document.getElementById('allin-btn');
+      if (allinBtn && !allinBtn.classList.contains('hidden')) {
+        allinBtn.click();
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
