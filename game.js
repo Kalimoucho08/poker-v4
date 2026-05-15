@@ -44,7 +44,7 @@ const state = {
   limitMode: 'nolimit',     // 'nolimit' | 'potlimit' | 'fixedlimit'
   soloHumanMode: false,     // true si un seul joueur humain
   handHistory: [],          // V5: historique pour détection bad beat / tilt
-  _gameOver: false,         // flag pour le handler unifié next-hand-btn
+  _gameOver: false,         // false|'lastHand'|'summary' — handler next-hand-btn
 };
 
 // --- Utilitaires Deck ---
@@ -1312,6 +1312,13 @@ function showdown() {
   state.dealerIndex = (state.dealerIndex + 1) % state.players.length;
   state.phase = 'showdown';
 
+  // Vérifier si la partie est terminée après ce showdown
+  const playersWithChips = state.players.filter(p => p.chips > 0);
+  if (playersWithChips.length <= 1) {
+    state._gameOver = 'lastHand';
+    document.getElementById('next-hand-btn').textContent = 'Voir le résultat final ▶';
+  }
+
   renderAll();
 }
 
@@ -1416,14 +1423,15 @@ function endHand() {
   renderAll();
   document.getElementById('action-bar').classList.add('hidden');
 
-  // Vérifier la fin de partie
+  // Vérifier la fin de partie — toujours afficher le résultat de la main d'abord
   const playersWithChips = state.players.filter(p => p.chips > 0);
   const humanAlive = playersWithChips.some(p => !p.isNPC);
-  if (playersWithChips.length <= 1 || (state.soloHumanMode && !humanAlive)) {
-    endGame();
-  } else {
-    // Afficher overlay "main gagnée sans showdown"
-    showWinByFoldOverlay(winnerName, totalPot);
+  const isGameOver = playersWithChips.length <= 1 || (state.soloHumanMode && !humanAlive);
+
+  showWinByFoldOverlay(winnerName, totalPot);
+  if (isGameOver) {
+    state._gameOver = 'lastHand';
+    document.getElementById('next-hand-btn').textContent = 'Voir le résultat final ▶';
   }
 }
 
@@ -1573,7 +1581,7 @@ function endGame() {
   `;
   document.getElementById('winner-amount').textContent = '';
   document.getElementById('next-hand-btn').textContent = 'Nouvelle partie';
-  state._gameOver = true;
+  state._gameOver = 'summary';
   overlay.classList.remove('hidden');
 
   document.getElementById('action-bar').classList.add('hidden');
@@ -1919,9 +1927,14 @@ function initEventListeners() {
 
   // Main suivante / Nouvelle partie — handler unifié
   document.getElementById('next-hand-btn').addEventListener('click', () => {
-    if (state._gameOver) {
+    if (state._gameOver === 'summary') {
+      // Écran de fin de partie déjà affiché → retour au setup
       resetGame();
+    } else if (state._gameOver === 'lastHand') {
+      // Dernière main jouée → afficher l'écran de fin de partie
+      endGame();
     } else {
+      // Partie en cours → main suivante
       nextHandFromOverlay();
     }
   });
