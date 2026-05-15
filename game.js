@@ -45,6 +45,7 @@ const state = {
   soloHumanMode: false,     // true si un seul joueur humain
   handHistory: [],          // V5: historique pour détection bad beat / tilt
   _gameOver: false,         // false|'lastHand'|'summary' — handler next-hand-btn
+  _lastShowdownHTML: '',     // HTML du dernier showdown à préserver dans endGame
 };
 
 // --- Utilitaires Deck ---
@@ -519,8 +520,13 @@ function renderActionBar() {
   const raiseBtn = document.getElementById('raise-btn');
   const raiseControls = document.getElementById('raise-controls');
   const isFixed = state.limitMode === 'fixedlimit';
+  const isPotLimit = state.limitMode === 'potlimit';
+  const potSize = computePotSize();
+  const potLimitMax = cp.currentBet + potSize + 2 * toCall;
+  const absoluteMax = cp.chips + cp.currentBet; // all-in total
 
   let canRaise;
+  let raiseBtnIsAllIn = false; // true si le bouton Relancer affiche déjà "Tapis"
   if (isFixed) {
     // Fixed Limit: relance fixe, cap à 4 mises par tour
     const fixedBet = getFixedLimitBet();
@@ -529,16 +535,14 @@ function renderActionBar() {
     raiseBtn.textContent = canCheck ? `Miser ${fixedBet}` : `Relancer ${raiseAmount}`;
   } else {
     const minRaiseTo = state.currentBet + state.minRaise;
-    const potSize = computePotSize();
-    const potLimitMax = cp.currentBet + potSize + 2 * toCall;
-    const absoluteMax = cp.chips + cp.currentBet; // all-in total
-    const maxRaise = state.limitMode === 'potlimit' ? Math.min(potLimitMax, absoluteMax) : absoluteMax;
+    const maxRaise = isPotLimit ? Math.min(potLimitMax, absoluteMax) : absoluteMax;
 
     // No Limit/Pot Limit: l'all-in est toujours autorisé, même en dessous du minRaise
     const canMeetMinRaise = maxRaise >= minRaiseTo;
     const allInBelowMin = cp.chips > toCall && absoluteMax < minRaiseTo;
     canRaise = cp.chips > toCall && (canMeetMinRaise || allInBelowMin);
-    raiseBtn.textContent = allInBelowMin ? 'Tapis !' : (absoluteMax === maxRaise && canMeetMinRaise && cp.chips <= toCall + state.minRaise ? 'Tapis' : 'Relancer');
+    raiseBtnIsAllIn = allInBelowMin || (absoluteMax === maxRaise && canMeetMinRaise && cp.chips <= toCall + state.minRaise);
+    raiseBtn.textContent = allInBelowMin ? 'Tapis !' : (raiseBtnIsAllIn ? 'Tapis' : 'Relancer');
   }
 
   // Bouton Check/Call
@@ -554,13 +558,16 @@ function renderActionBar() {
   if (raiseControls) raiseControls.classList.add('hidden');
   raiseBtn.classList.remove('hidden');
 
-  // Bouton all-in : visible si le joueur a des jetons (No Limit / Pot Limit uniquement)
+  // Bouton all-in dédié : masqué si le bouton Relancer fait déjà office de tapis
   const allinBtn = document.getElementById('allin-btn');
   if (allinBtn) {
-    const showAllin = !isFixed && cp.chips > 0 && !cp.isAllIn;
+    const showAllin = !isFixed && cp.chips > 0 && !cp.isAllIn && !raiseBtnIsAllIn;
     allinBtn.classList.toggle('hidden', !showAllin);
     if (showAllin) {
-      allinBtn.textContent = cp.chips <= (state.currentBet - cp.currentBet) + state.minRaise ? 'Tapis !' : 'Tapis !';
+      // En Pot Limit, le tapis est impossible si le stack dépasse la mise max autorisée
+      const allInBlocked = isPotLimit && absoluteMax > potLimitMax;
+      allinBtn.disabled = allInBlocked;
+      allinBtn.textContent = allInBlocked ? 'Tapis (bloqué)' : 'Tapis !';
     }
   }
 
@@ -768,7 +775,7 @@ function startNewHand() {
   state.phase = 'preflop';
   postBlinds();
   renderAll();
-  addLog(`--- Main #${state.handNumber} ---`);
+  addLog(`--- Main #${state.handNumber} (${state.limitMode === 'potlimit' ? 'Pot Limit' : state.limitMode === 'fixedlimit' ? 'Fixed Limit' : 'No Limit'}) ---`);
   addLog(`Donneur : ${state.players[state.dealerIndex].name}`);
   if (state.soloHumanMode) {
     const humanPlayer = state.players.find(p => !p.isNPC);
@@ -1149,10 +1156,10 @@ function playerRaise(amount) {
     if (state.roundRaiseCount >= 4) return;
   }
 
-  // Pot-Limit: plafonner la relance
+  // Pot-Limit: plafonner la relance (max = pot + montant à suivre)
   if (state.limitMode === 'potlimit') {
     const potSize = computePotSize();
-    const maxRaiseAmount = potSize;
+    const maxRaiseAmount = potSize + toCall;
     if (amount > maxRaiseAmount) {
       amount = maxRaiseAmount;
     }
@@ -1230,6 +1237,7 @@ function showdown() {
 
   const activePlayers = state.players.filter(p => !p.folded);
   addLog('--- Abattage ---');
+  addLog(`🃏 Cartes communes : [${formatCards(state.communityCards)}]`);
 
   // Calculer les side pots
   const pots = calculateSidePots();
@@ -1319,6 +1327,9 @@ function showdown() {
   // Faire tourner le dealer
   state.dealerIndex = findNextPlayerWithChips((state.dealerIndex + 1) % state.players.length);
   state.phase = 'showdown';
+
+  // Sauvegarder le HTML du showdown pour le préserver dans endGame
+  state._lastShowdownHTML = document.getElementById('showdown-cards').innerHTML;
 
   // Vérifier si la partie est terminée après ce showdown
   const playersWithChips = state.players.filter(p => p.chips > 0);
@@ -1571,7 +1582,11 @@ function endGame() {
     ? `🏆 ${winner.name} remporte la partie !`
     : 'Match nul !';
 
+  // Préserver le showdown précédent s'il existe, sinon affichage simple
+  const showdownHTML = state._lastShowdownHTML || '';
+  state._lastShowdownHTML = '';
   document.getElementById('showdown-cards').innerHTML = `
+    ${showdownHTML ? `<div class="previous-showdown">${showdownHTML}</div>` : ''}
     <div class="game-summary">
       <div class="summary-stats">
         <div>🃏 <b>${handsPlayed}</b> mains jouées</div>
@@ -1801,7 +1816,8 @@ function initEventListeners() {
     document.getElementById('game-screen').classList.remove('hidden');
     document.getElementById('action-bar').classList.add('hidden');
 
-    addLog('🃏 Nouvelle partie de Texas Hold\'em !');
+    const limitLabel = state.limitMode === 'fixedlimit' ? 'Fixed Limit' : state.limitMode === 'potlimit' ? 'Pot Limit' : 'No Limit';
+    addLog(`🃏 Nouvelle partie de Texas Hold'em (${limitLabel}) !`);
     startNewHand();
   });
 
@@ -1906,6 +1922,16 @@ function initEventListeners() {
     const toCall = state.currentBet - cp.currentBet;
     const allInTotal = cp.chips + cp.currentBet;
 
+    // Sécurité Pot Limit : vérifier que le tapis ne dépasse pas la mise max
+    if (state.limitMode === 'potlimit') {
+      const potSize = computePotSize();
+      const potLimitMax = cp.currentBet + potSize + 2 * toCall;
+      if (allInTotal > potLimitMax) {
+        alert('En Pot Limit, vous ne pouvez pas miser plus que le pot. Utilisez le slider "Relancer" pour ajuster votre mise.');
+        return;
+      }
+    }
+
     if (!confirm(`⚠️ Tout miser — ${cp.chips} jetons (all-in) ?`)) return;
 
     // Cacher les contrôles de relance si visibles
@@ -1954,8 +1980,9 @@ function initEventListeners() {
     }
   });
 
-  // Panneau de log
+  // Panneau de log (ferme les conseils)
   document.getElementById('show-log-btn').addEventListener('click', () => {
+    document.getElementById('advice-panel').classList.add('hidden');
     document.getElementById('log-panel').classList.remove('hidden');
   });
 
@@ -1963,7 +1990,7 @@ function initEventListeners() {
     document.getElementById('log-panel').classList.add('hidden');
   });
 
-  // Panneau de conseils
+  // Panneau de conseils (ferme le log)
   document.getElementById('toggle-advice-btn').addEventListener('click', toggleAdvice);
   document.getElementById('close-advice-btn').addEventListener('click', () => {
     document.getElementById('advice-panel').classList.add('hidden');
@@ -2129,6 +2156,7 @@ function getPositionLabel(player) {
 function toggleAdvice() {
   const panel = document.getElementById('advice-panel');
   if (panel.classList.contains('hidden')) {
+    document.getElementById('log-panel').classList.add('hidden');
     document.getElementById('advice-content').innerHTML = generateAdvice();
     panel.classList.remove('hidden');
   } else {

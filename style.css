@@ -273,7 +273,6 @@ body {
   padding: 8px 8px;
   font-size: 12px;
 }
-}
 
 .toggle-btn {
   flex: 1;
@@ -568,12 +567,6 @@ body {
   text-transform: uppercase;
 }
 
-.pot-display {
-  font-size: 18px;
-  font-weight: 700;
-  color: #f0d060;
-}
-
 .game-controls {
   display: flex;
   gap: 8px;
@@ -594,6 +587,7 @@ body {
   max-width: 1000px;
   height: 55vh;
   max-height: 550px;
+  min-height: 420px;
   background: radial-gradient(ellipse at center, #27744a 0%, #1a5c38 50%, #0f3d22 100%);
   border-radius: 50%;
   border: 8px solid #1a3a25;
@@ -607,7 +601,7 @@ body {
 /* === POT AREA (centre de la table) === */
 .pot-area {
   position: absolute;
-  top: 38%;
+  top: 26%;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
@@ -799,7 +793,7 @@ body {
 /* === COMMUNITY CARDS === */
 .community-area {
   position: absolute;
-  top: 50%;
+  top: 56%;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
@@ -899,17 +893,6 @@ body {
   align-items: center;
   gap: 4px;
   z-index: 5;
-}
-
-.player-info {
-  background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(4px);
-  border-radius: 10px;
-  padding: 6px 14px;
-  text-align: center;
-  border: 2px solid transparent;
-  min-width: 100px;
-  transition: border-color 0.2s;
 }
 
 .player-info.active {
@@ -1157,16 +1140,6 @@ body {
   z-index: 90;
 }
 
-.winner-card {
-  background: #1e1e35;
-  border: 2px solid #f0d060;
-  border-radius: 16px;
-  padding: 36px 48px;
-  text-align: center;
-  max-width: 700px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-}
-
 .winner-card h2 {
   font-size: 28px;
   color: #f0d060;
@@ -1324,12 +1297,6 @@ body {
   margin: 8px 0 4px;
 }
 
-.showdown-hand-name {
-  font-size: 13px;
-  color: #aaa;
-  margin-top: 4px;
-}
-
 /* === SOLO HUMAN CARDS (bigger, always visible) === */
 .player-hole-cards-large {
   display: flex;
@@ -1474,6 +1441,18 @@ body {
 }
 
 /* === RESPONSIVE === */
+@media (max-width: 1024px) {
+  .poker-table {
+    width: 85vw;
+    height: 50vh;
+  }
+
+  .action-bar {
+    padding: 10px 16px;
+    gap: 12px;
+  }
+}
+
 @media (max-width: 768px) {
   .poker-table {
     width: 92vw;
@@ -1507,4 +1486,11 @@ body {
     width: 70px;
     height: 98px;
   }
+}
+
+.previous-showdown {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #2a2a45;
+  opacity: 0.85;
 }
