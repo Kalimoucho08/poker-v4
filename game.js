@@ -790,6 +790,10 @@ function findNextPlayerWithChips(fromIndex) {
 
 function postBlinds() {
   const n = state.players.length;
+  const activePlayers = state.players.filter(p => p.chips > 0);
+  const activeCount = activePlayers.length;
+
+  if (activeCount < 2) return;
 
   // Trouver les joueurs pour SB et BB (en sautant les éliminés)
   const sbIndex = findNextPlayerWithChips((state.dealerIndex + 1) % n);
@@ -798,10 +802,14 @@ function postBlinds() {
   if (bbIndex === -1) return;
 
   let sbPlayer, bbPlayer;
-  if (n === 2) {
-    // Heads-up : dealer = SB
+  if (activeCount === 2) {
+    // Heads-up : dealer = SB, l'autre joueur actif = BB
     sbPlayer = state.players[state.dealerIndex];
-    bbPlayer = state.players[(state.dealerIndex + 1) % n];
+    // Si le dealer est éliminé, prendre l'autre joueur actif
+    if (sbPlayer.chips <= 0) {
+      sbPlayer = activePlayers[0];
+    }
+    bbPlayer = activePlayers.find(p => p.id !== sbPlayer.id);
   } else {
     sbPlayer = state.players[sbIndex];
     bbPlayer = state.players[bbIndex];
@@ -1309,7 +1317,7 @@ function showdown() {
   logPlayerStacks();
 
   // Faire tourner le dealer
-  state.dealerIndex = (state.dealerIndex + 1) % state.players.length;
+  state.dealerIndex = findNextPlayerWithChips((state.dealerIndex + 1) % state.players.length);
   state.phase = 'showdown';
 
   // Vérifier si la partie est terminée après ce showdown
@@ -1418,7 +1426,7 @@ function endHand() {
   state.pot = 0;
 
   // Rotation du dealer
-  state.dealerIndex = (state.dealerIndex + 1) % state.players.length;
+  state.dealerIndex = findNextPlayerWithChips((state.dealerIndex + 1) % state.players.length);
 
   renderAll();
   document.getElementById('action-bar').classList.add('hidden');
