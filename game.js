@@ -745,6 +745,8 @@ function startNewHand() {
     state.players.forEach(p => { if (p.isNPC) decayTilt(p.id); });
   }
 
+  state._lastShowdownHTML = '';
+
   // Réinitialiser les joueurs (les éliminés restent hors-jeu)
   state.players.forEach(p => {
     p.holeCards = [];
@@ -1454,6 +1456,16 @@ function endHand() {
   }
 }
 
+// Log debug complet : toutes les cartes à la fin d'une main
+function debugLogAllCards(label) {
+  addLog(`[DEBUG] ${label}`);
+  addLog(`  🃏 Board (${state.communityCards.length} cartes) : ${state.communityCards.length > 0 ? formatCards(state.communityCards) : '(vide)'}`);
+  for (const p of state.players) {
+    const status = p.folded ? 'couché' : p.isAllIn ? 'tapis' : p.chips <= 0 ? 'éliminé' : 'actif';
+    addLog(`  ${p.isNPC ? '🤖' : '👤'} ${p.name} [${status}] : ${p.holeCards.length > 0 ? formatCards(p.holeCards) : '(pas de cartes)'}`);
+  }
+}
+
 // Overlay quand un joueur gagne par abandon général (sans showdown)
 function showWinByFoldOverlay(winnerName, amount) {
   const overlay = document.getElementById('winner-overlay');
@@ -1462,6 +1474,10 @@ function showWinByFoldOverlay(winnerName, amount) {
   const loserNames = losers.map(p => `${p.name} (-${p.totalBetThisHand})`).join(', ');
 
   document.getElementById('winner-title').textContent = `${winnerName} remporte la main !`;
+
+  // Pas de showdown → ne pas préserver d'ancien HTML de showdown
+  state._lastShowdownHTML = '';
+  debugLogAllCards('Fin de main (sans showdown)');
 
   // Sans showdown : pas de cartes privées révélées, seulement le board
   let html = '';
@@ -1514,6 +1530,7 @@ function nextHandFromOverlay() {
 }
 
 function showWinnerOverlay(results, activePlayers) {
+  debugLogAllCards('Fin de main (showdown)');
   const overlay = document.getElementById('winner-overlay');
   const title = document.getElementById('winner-title');
   const cardsDiv = document.getElementById('showdown-cards');
