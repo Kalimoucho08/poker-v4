@@ -480,10 +480,14 @@ function renderActionBar() {
     const minRaiseTo = state.currentBet + state.minRaise;
     const potSize = computePotSize();
     const potLimitMax = cp.currentBet + potSize + 2 * toCall;
-    const absoluteMax = cp.chips + cp.currentBet;
+    const absoluteMax = cp.chips + cp.currentBet; // all-in total
     const maxRaise = state.limitMode === 'potlimit' ? Math.min(potLimitMax, absoluteMax) : absoluteMax;
-    canRaise = cp.chips > toCall && maxRaise >= minRaiseTo;
-    raiseBtn.textContent = 'Relancer';
+
+    // No Limit/Pot Limit: l'all-in est toujours autorisé, même en dessous du minRaise
+    const canMeetMinRaise = maxRaise >= minRaiseTo;
+    const allInBelowMin = cp.chips > toCall && absoluteMax < minRaiseTo;
+    canRaise = cp.chips > toCall && (canMeetMinRaise || allInBelowMin);
+    raiseBtn.textContent = allInBelowMin ? 'Tapis !' : (absoluteMax === maxRaise && canMeetMinRaise && cp.chips <= toCall + state.minRaise ? 'Tapis' : 'Relancer');
   }
 
   // Bouton Check/Call
@@ -1017,7 +1021,12 @@ function playerRaise(amount) {
   const toCall = state.currentBet - cp.currentBet;
   const totalNeeded = toCall + amount;
 
-  if (totalNeeded > cp.chips) return; // Pas assez de jetons
+  // All-in : si le joueur n'a pas assez, on cappe à tout son stack
+  if (totalNeeded > cp.chips) {
+    amount = cp.chips - toCall;
+    totalNeeded = cp.chips;
+    if (amount <= 0) return; // Même l'all-in ne suffit pas
+  }
 
   // Fixed Limit: utiliser le montant fixe
   if (state.limitMode === 'fixedlimit') {
@@ -1681,18 +1690,28 @@ function initEventListeners() {
     const absoluteMax = cp.chips + cp.currentBet;
     const maxTotal = state.limitMode === 'potlimit' ? Math.min(potLimitMax, absoluteMax) : absoluteMax;
 
-    if (maxTotal < minTotal) return; // Can't raise
+    // All-in en dessous du minRaise : quand le joueur n'a pas assez pour une relance complète
+    const isAllInBelowMin = maxTotal < minTotal;
 
     // Afficher les contrôles de relance
     const raiseControls = document.getElementById('raise-controls');
     const slider = document.getElementById('raise-slider');
     const amountSpan = document.getElementById('raise-amount');
 
-    slider.min = minTotal;
-    slider.max = maxTotal;
-    slider.value = Math.min(minTotal, maxTotal);
-    slider.step = Math.max(1, Math.floor(state.minRaise / 2));
-    amountSpan.textContent = Math.min(minTotal, maxTotal);
+    if (isAllInBelowMin) {
+      // All-in forcé : une seule valeur possible
+      slider.min = maxTotal;
+      slider.max = maxTotal;
+      slider.value = maxTotal;
+      slider.step = 1;
+    } else {
+      slider.min = minTotal;
+      slider.max = maxTotal;
+      slider.value = Math.max(minTotal, Math.min(maxTotal, minTotal + state.minRaise));
+      // Step = 1 quand le stack est petit, pour permettre la précision
+      slider.step = (maxTotal - minTotal) < 50 ? 1 : Math.max(1, Math.floor(state.minRaise / 2));
+    }
+    amountSpan.textContent = slider.value;
 
     raiseControls.classList.remove('hidden');
     document.getElementById('raise-btn').classList.add('hidden');
