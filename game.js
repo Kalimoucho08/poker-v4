@@ -1462,8 +1462,28 @@ function showWinByFoldOverlay(winnerName, amount) {
   const loserNames = losers.map(p => `${p.name} (-${p.totalBetThisHand})`).join(', ');
 
   document.getElementById('winner-title').textContent = `${winnerName} remporte la main !`;
-  document.getElementById('showdown-cards').innerHTML = loserNames ? `<p style="color:#999;font-size:13px">Abandons de : ${loserNames}</p>` : '';
-  document.getElementById('winner-amount').textContent = `Pot : ${amount} jetons${winner ? ' — Stack de ' + winner.name + ' : ' + winner.chips + ' jetons' : ''}`;
+
+  // Montrer la main gagnante + le tirage (board) même sans showdown
+  let html = '';
+  if (winner && winner.holeCards.length === 2) {
+    html += `<div class="showdown-player winner-highlight">`;
+    html += `<div class="showdown-name" style="color:${winner.color}">👑 Main gagnante</div>`;
+    html += `<div class="showdown-cards-row">${winner.holeCards.map(c => createCardHTML(c, false, false)).join('')}</div>`;
+    html += `</div>`;
+  }
+  // Cartes communes déjà tirées
+  if (state.communityCards.length > 0) {
+    html += `<div class="showdown-section-label">🃏 Cartes sur la table</div>`;
+    html += `<div class="showdown-cards-row">${state.communityCards.map(c => createCardHTML(c, false, false)).join('')}</div>`;
+  } else {
+    html += `<p style="color:#888;font-size:13px;margin:8px 0">(pré-flop — pas de cartes communes)</p>`;
+  }
+  if (loserNames) {
+    html += `<p style="color:#999;font-size:12px;margin-top:12px">Abandons : ${loserNames}</p>`;
+  }
+
+  document.getElementById('showdown-cards').innerHTML = html;
+  document.getElementById('winner-amount').textContent = `Pot : ${amount} jetons${winner ? ' — Stack : ' + winner.chips + ' jetons' : ''}`;
   const nextBtn = document.getElementById('next-hand-btn');
   nextBtn.textContent = 'Main suivante ▶';
   state._gameOver = false;
@@ -1505,25 +1525,23 @@ function showWinnerOverlay(results, activePlayers) {
     title.textContent = 'Main terminée';
   }
 
-  // Afficher les mains de tous les joueurs
-  cardsDiv.innerHTML = activePlayers.map(p => {
+  let html = '';
+
+  // Cartes communes — une seule fois en haut, neutres (pas de marqueur)
+  html += `<div class="showdown-section-label">🃏 Cartes communes</div>`;
+  html += `<div class="showdown-cards-row" style="margin-bottom:16px">${state.communityCards.map(c => createCardHTML(c, false, false)).join('')}</div>`;
+
+  // Chaque joueur : sa main + ses hole cards avec ★ si utilisées
+  html += activePlayers.map(p => {
     const allCards = [...p.holeCards, ...state.communityCards];
     const hand = p.bestHand || evaluateHand(allCards);
     const isWinner = results.some(r => r.winners && r.winners.some(w => w && w.id === p.id));
     const winnerClass = isWinner ? ' winner-highlight' : '';
 
-    // Identifier quelles cartes sont dans la meilleure combinaison
+    // Identifier quelles hole cards sont dans la meilleure combinaison
     const bestSet = new Set(hand.bestCards.map(c => `${c.rank}|${c.suit}`));
 
-    // Cartes du joueur (2 hole cards) marquées "best" ou non
     const holeHTML = p.holeCards.map(c => {
-      const isBest = bestSet.has(`${c.rank}|${c.suit}`);
-      const wrapperClass = isBest ? 'card-wrapper' : 'card-wrapper wrapper-unused';
-      return `<div class="${wrapperClass}">${createCardHTML(c, false, false)}<span class="card-marker ${isBest ? 'marker-best' : 'marker-unused'}">${isBest ? '★' : ''}</span></div>`;
-    }).join('');
-
-    // Cartes communes : lesquelles sont utilisées par ce joueur
-    const commuHTML = state.communityCards.map(c => {
       const isBest = bestSet.has(`${c.rank}|${c.suit}`);
       const wrapperClass = isBest ? 'card-wrapper' : 'card-wrapper wrapper-unused';
       return `<div class="${wrapperClass}">${createCardHTML(c, false, false)}<span class="card-marker ${isBest ? 'marker-best' : 'marker-unused'}">${isBest ? '★' : ''}</span></div>`;
@@ -1535,13 +1553,12 @@ function showWinnerOverlay(results, activePlayers) {
           ${p.isNPC ? '🤖' : '👤'} ${p.name} ${isWinner ? '👑' : ''}
         </div>
         <div class="showdown-hand-name" style="font-size:15px;font-weight:700;margin-bottom:4px;color:#f0d060">${hand.desc}</div>
-        <div class="showdown-section-label">Main du joueur</div>
         <div class="showdown-cards-row">${holeHTML}</div>
-        <div class="showdown-section-label">Cartes communes</div>
-        <div class="showdown-cards-row">${commuHTML}</div>
       </div>
     `;
   }).join('');
+
+  cardsDiv.innerHTML = html;
 
   // Montant gagné
   const totalWon = results.reduce((sum, r) => sum + r.pot, 0);
