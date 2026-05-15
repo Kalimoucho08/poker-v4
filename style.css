@@ -1166,7 +1166,7 @@ body {
   margin-bottom: 8px;
 }
 
-.showdown-player .showdown-cards-row {
+.showdown-cards-row {
   display: flex;
   gap: 6px;
   justify-content: center;
