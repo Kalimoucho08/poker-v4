@@ -1463,14 +1463,8 @@ function showWinByFoldOverlay(winnerName, amount) {
 
   document.getElementById('winner-title').textContent = `${winnerName} remporte la main !`;
 
-  // Montrer la main gagnante + le tirage (board) même sans showdown
+  // Sans showdown : pas de cartes privées révélées, seulement le board
   let html = '';
-  if (winner && winner.holeCards.length === 2) {
-    html += `<div class="showdown-player winner-highlight">`;
-    html += `<div class="showdown-name" style="color:${winner.color}">👑 Main gagnante</div>`;
-    html += `<div class="showdown-cards-row">${winner.holeCards.map(c => createCardHTML(c, false, false)).join('')}</div>`;
-    html += `</div>`;
-  }
   // Cartes communes déjà tirées — flop / turn / river
   if (state.communityCards.length > 0) {
     html += `<div class="showdown-section-label">🃏 Cartes sur la table</div>`;
