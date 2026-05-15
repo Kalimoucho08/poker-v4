@@ -789,22 +789,37 @@ function postBlinds() {
 
 function findFirstToAct() {
   const n = state.players.length;
+  const activePlayers = state.players.filter(p => p.chips > 0);
+  const activeCount = activePlayers.length;
 
-  if (n === 2) {
+  if (activeCount === 2) {
     // Heads-up pre-flop : dealer (SB) acts first
-    // Si le dealer est éliminé, trouver le prochain joueur actif
     if (state.players[state.dealerIndex].chips > 0) return state.dealerIndex;
-    return (state.dealerIndex + 1) % n;
+    // Fallback: trouver l'autre joueur actif
+    for (let i = 1; i <= n; i++) {
+      const idx = (state.dealerIndex + i) % n;
+      if (state.players[idx].chips > 0) return idx;
+    }
+    return state.dealerIndex;
   }
 
-  // 3+ joueurs pre-flop : UTG = left of BB = dealer + 3
-  let idx = (state.dealerIndex + 3) % n;
-  // Skip eliminated players
-  for (let i = 0; i < n; i++) {
-    const checkIdx = (idx + i) % n;
-    if (state.players[checkIdx].chips > 0) return checkIdx;
+  // 3+ joueurs : trouver d'abord la BB (dealer+2 en sautant les éliminés)
+  let bbIdx = -1;
+  for (let i = 1; i <= n; i++) {
+    const idx = (state.dealerIndex + i) % n;
+    if (state.players[idx].chips > 0) {
+      if (bbIdx === -1) { bbIdx = idx; continue; } // premier actif = SB
+      bbIdx = idx; break; // deuxième actif = BB
+    }
   }
-  return idx; // fallback
+  if (bbIdx === -1) return state.dealerIndex; // fallback
+
+  // UTG = premier joueur actif après la BB
+  for (let i = 1; i <= n; i++) {
+    const idx = (bbIdx + i) % n;
+    if (state.players[idx].chips > 0) return idx;
+  }
+  return bbIdx; // fallback (ne devrait pas arriver)
 }
 
 function findNextActivePlayer(fromIndex) {
@@ -1967,15 +1982,33 @@ function generateAdvice() {
 }
 
 function getPositionLabel(player) {
-  const idx = state.players.indexOf(player);
+  const activePlayers = state.players.filter(p => p.chips > 0);
+  const totalActive = activePlayers.length;
+
+  // 2 joueurs = heads-up spécial
+  if (totalActive === 2) {
+    const idx = state.players.indexOf(player);
+    if (idx === state.dealerIndex) return 'Dealer / SB';
+    return 'Big Blind';
+  }
+
+  // Calculer la position parmi les joueurs actifs
+  let posIdx = 0;
   const n = state.players.length;
-  if (idx === state.dealerIndex) return 'Dealer / Bouton (meilleure position)';
-  if (idx === (state.dealerIndex + 1) % n) return n === 2 ? 'Small Blind' : 'Small Blind (2e à parler préflop)';
-  if (idx === (state.dealerIndex + 2) % n) return n === 2 ? 'Big Blind' : 'Big Blind (dernier à parler préflop)';
-  if (idx === (state.dealerIndex + 3) % n) return 'UTG (1er à parler)';
-  const dist = ((idx - state.dealerIndex) + n) % n;
-  if (dist === n - 1) return 'Cutoff (avant-dernier)';
-  return `Milieu (${dist}e après le dealer)`;
+  const playerIdx = state.players.indexOf(player);
+  for (let i = 1; i <= n; i++) {
+    const idx = (state.dealerIndex + i) % n;
+    if (idx === playerIdx) break;
+    if (state.players[idx].chips > 0) posIdx++;
+  }
+
+  // posIdx: 0=SB, 1=BB, 2=UTG, totalActive-2=CO, totalActive-1=BTN (dealer)
+  if (posIdx === 0) return 'Small Blind (1er à parler postflop)';
+  if (posIdx === 1) return 'Big Blind (dernier à parler préflop)';
+  if (posIdx === totalActive - 1) return 'Dealer / Bouton (meilleure position)';
+  if (totalActive >= 5 && posIdx === totalActive - 2) return 'Cutoff (avant-dernier)';
+  if (posIdx === 2) return 'UTG (1er à parler préflop)';
+  return `Milieu (${posIdx}e après le dealer)`;
 }
 
 function toggleAdvice() {

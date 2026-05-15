@@ -44,38 +44,25 @@ function getPositionIndex(player, state) {
 }
 
 function getPositionLabel(player, state) {
-  const n = state.players.length;
-  const activePlayers = state.players.filter(p => p.chips > 0).length;
+  const activePlayers = state.players.filter(p => p.chips > 0);
+  const totalActive = activePlayers.length;
 
-  if (activePlayers === 2) {
+  // 2 joueurs = heads-up spécial
+  if (totalActive === 2) {
     const playerIdx = state.players.indexOf(player);
     if (playerIdx === state.dealerIndex) return 'SB/BTN';
     return 'BB';
   }
 
   const posIdx = getPositionIndex(player, state);
-  const totalActive = activePlayers;
 
-  // Mapping position → label selon le nombre de joueurs
-  if (totalActive <= 3) {
-    if (posIdx === 0) return 'BTN';
-    if (posIdx === 1) return 'SB';
-    return 'BB';
-  }
-
-  if (totalActive <= 4) {
-    if (posIdx === 0) return 'CO';
-    if (posIdx === 1) return 'BTN';
-    if (posIdx === 2) return 'SB';
-    return 'BB';
-  }
-
-  // 5+ joueurs
-  if (posIdx === 0) return 'UTG';
-  if (posIdx === totalActive - 3) return 'CO';
-  if (posIdx === totalActive - 2) return 'BTN';
-  if (posIdx === totalActive - 1) return 'SB';
-  if (posIdx === totalActive) return 'BB';
+  // posIdx part de dealer+1 (SB) et tourne dans le sens horaire
+  // 0=SB, 1=BB, 2=UTG, totalActive-2=CO, totalActive-1=BTN (dealer)
+  if (posIdx === 0) return 'SB';
+  if (posIdx === 1) return 'BB';
+  if (posIdx === totalActive - 1) return 'BTN';
+  if (totalActive >= 5 && posIdx === totalActive - 2) return 'CO';
+  if (posIdx === 2) return 'UTG';
   return 'MP';
 }
 
