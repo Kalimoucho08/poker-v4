@@ -44,6 +44,7 @@ const state = {
   limitMode: 'nolimit',     // 'nolimit' | 'potlimit' | 'fixedlimit'
   soloHumanMode: false,     // true si un seul joueur humain
   handHistory: [],          // V5: historique pour détection bad beat / tilt
+  _gameOver: false,         // flag pour le handler unifié next-hand-btn
 };
 
 // --- Utilitaires Deck ---
@@ -674,6 +675,7 @@ function startNewHand() {
     return;
   }
 
+  state._gameOver = false;
   state.handNumber++;
   state.communityCards = [];
   state.pot = 0;
@@ -1352,7 +1354,7 @@ function showWinByFoldOverlay(winnerName, amount) {
   document.getElementById('winner-amount').textContent = `Pot : ${amount} jetons${winner ? ' — Stack de ' + winner.name + ' : ' + winner.chips + ' jetons' : ''}`;
   const nextBtn = document.getElementById('next-hand-btn');
   nextBtn.textContent = 'Main suivante ▶';
-  nextBtn.onclick = null; // annuler tout onclick résiduel de endGame()
+  state._gameOver = false;
 
   // Animation jetons depuis le pot vers le gagnant
   const potStack = document.getElementById('pot-stack');
@@ -1436,7 +1438,7 @@ function showWinnerOverlay(results, activePlayers) {
   // Bouton main suivante
   const nextBtn = document.getElementById('next-hand-btn');
   nextBtn.textContent = 'Main suivante ▶';
-  nextBtn.onclick = null; // annuler tout onclick résiduel de endGame()
+  state._gameOver = false;
 
   // Animation de célébration
   const winnerCard = overlay.querySelector('.winner-card');
@@ -1486,7 +1488,7 @@ function endGame() {
   `;
   document.getElementById('winner-amount').textContent = '';
   document.getElementById('next-hand-btn').textContent = 'Nouvelle partie';
-  document.getElementById('next-hand-btn').onclick = resetGame;
+  state._gameOver = true;
   overlay.classList.remove('hidden');
 
   document.getElementById('action-bar').classList.add('hidden');
@@ -1528,7 +1530,7 @@ function resetGame() {
   document.getElementById('winner-overlay').classList.add('hidden');
   document.getElementById('game-screen').classList.add('hidden');
   document.getElementById('setup-screen').classList.remove('hidden');
-  document.getElementById('next-hand-btn').onclick = null; // nettoyer le onclick résiduel
+  state._gameOver = false;
   logEntries.length = 0;
   state.phase = 'setup';
   state.players = [];
@@ -1806,8 +1808,14 @@ function initEventListeners() {
     startNewHand();
   });
 
-  // Main suivante (depuis l'overlay de résultat) — nextHandFromOverlay est défini plus haut
-  document.getElementById('next-hand-btn').addEventListener('click', nextHandFromOverlay);
+  // Main suivante / Nouvelle partie — handler unifié
+  document.getElementById('next-hand-btn').addEventListener('click', () => {
+    if (state._gameOver) {
+      resetGame();
+    } else {
+      nextHandFromOverlay();
+    }
+  });
 
   // Fin de partie
   document.getElementById('end-game-btn').addEventListener('click', () => {
