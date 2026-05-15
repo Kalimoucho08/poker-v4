@@ -24,3 +24,5 @@
 
 ## Showdown
 - Showdown de la dernière main préservé dans l'écran de fin de partie (`.previous-showdown` au-dessus du résumé)
+- Panneau gagnant restructuré : cartes communes UNE fois en haut, chaque joueur montre main + hole cards
+- Panneau sans showdown (fold) : affiche la main gagnante + cartes sur la table (même sans abattage)
