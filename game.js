@@ -1322,7 +1322,9 @@ function showWinByFoldOverlay(winnerName, amount) {
   document.getElementById('winner-title').textContent = `${winnerName} remporte la main !`;
   document.getElementById('showdown-cards').innerHTML = loserNames ? `<p style="color:#999;font-size:13px">Abandons de : ${loserNames}</p>` : '';
   document.getElementById('winner-amount').textContent = `Pot : ${amount} jetons${winner ? ' — Stack de ' + winner.name + ' : ' + winner.chips + ' jetons' : ''}`;
-  document.getElementById('next-hand-btn').textContent = 'Main suivante ▶';
+  const nextBtn = document.getElementById('next-hand-btn');
+  nextBtn.textContent = 'Main suivante ▶';
+  nextBtn.onclick = null; // annuler tout onclick résiduel de endGame()
 
   // Animation jetons depuis le pot vers le gagnant
   const potStack = document.getElementById('pot-stack');
@@ -1404,7 +1406,9 @@ function showWinnerOverlay(results, activePlayers) {
   amountP.textContent = `Pot total : ${totalWon} jetons`;
 
   // Bouton main suivante
-  document.getElementById('next-hand-btn').textContent = 'Main suivante ▶';
+  const nextBtn = document.getElementById('next-hand-btn');
+  nextBtn.textContent = 'Main suivante ▶';
+  nextBtn.onclick = null; // annuler tout onclick résiduel de endGame()
 
   // Animation de célébration
   const winnerCard = overlay.querySelector('.winner-card');
@@ -1492,6 +1496,7 @@ function resetGame() {
   document.getElementById('winner-overlay').classList.add('hidden');
   document.getElementById('game-screen').classList.add('hidden');
   document.getElementById('setup-screen').classList.remove('hidden');
+  document.getElementById('next-hand-btn').onclick = null; // nettoyer le onclick résiduel
   logEntries.length = 0;
   state.phase = 'setup';
   state.players = [];
