@@ -43,6 +43,7 @@ const state = {
   awaitingAction: false,
   limitMode: 'nolimit',     // 'nolimit' | 'potlimit' | 'fixedlimit'
   soloHumanMode: false,     // true si un seul joueur humain
+  handHistory: [],          // V5: historique pour détection bad beat / tilt
 };
 
 // --- Utilitaires Deck ---
@@ -657,6 +658,11 @@ function startNewHand() {
   state.playersActed = new Set();
   state.roundRaiseCount = 0;
 
+  // V5: decay du tilt pour tous les joueurs
+  if (typeof decayTilt === 'function') {
+    state.players.forEach(p => { if (p.isNPC) decayTilt(p.id); });
+  }
+
   // Réinitialiser les joueurs (les éliminés restent hors-jeu)
   state.players.forEach(p => {
     p.holeCards = [];
@@ -910,6 +916,10 @@ function advancePhase() {
       state.communityCards.push(state.deck.pop());
       state.communityCards.push(state.deck.pop());
       addLog(`🃏 Flop : [${formatCards(state.communityCards)}]`);
+      // V5: enregistrer les joueurs qui voient le flop
+      if (typeof recordSawFlop === 'function') {
+        state.players.forEach(p => { if (!p.folded && p.chips > 0) recordSawFlop(p.id); });
+      }
       break;
     case 'flop':
       state.phase = 'turn';
@@ -940,6 +950,11 @@ function playerFold() {
   cp.folded = true;
   state.playersActed.add(cp.id);
   addLog(`${cp.name} se couche`);
+
+  // V5: enregistrer l'action pour opponent-model
+  if (typeof recordAction === 'function') {
+    recordAction(cp.id, 'fold', 0, state.phase, state.phase === 'preflop');
+  }
 
   if (countActivePlayers() <= 1) {
     // Tout le monde s'est couché sauf un
@@ -983,6 +998,12 @@ function playerCheckCall() {
   }
 
   state.playersActed.add(cp.id);
+
+  // V5: enregistrer l'action pour opponent-model
+  const callAction = toCall === 0 ? 'check' : (cp.isAllIn ? 'call' : 'call');
+  if (typeof recordAction === 'function') {
+    recordAction(cp.id, callAction, toCall, state.phase, state.phase === 'preflop');
+  }
 
   if (isBettingRoundComplete()) {
     finishBettingRound();
@@ -1031,6 +1052,11 @@ function playerRaise(amount) {
   state.playersActed = new Set([cp.id]);
 
   addLog(`${cp.name} relance à ${cp.currentBet} (+${amount})`);
+
+  // V5: enregistrer l'action pour opponent-model
+  if (typeof recordAction === 'function') {
+    recordAction(cp.id, 'raise', amount, state.phase, state.phase === 'preflop');
+  }
 
   if (isBettingRoundComplete()) {
     finishBettingRound();
@@ -1120,6 +1146,30 @@ function showdown() {
 
   // Afficher les résultats
   showWinnerOverlay(results, activePlayers);
+
+  // V5: détection bad beat → alimenter le tilt
+  if (typeof recordTiltEvent === 'function') {
+    const allWinners = new Set();
+    for (const r of results) {
+      for (const w of r.winners) allWinners.add(w.id);
+    }
+    for (const p of activePlayers) {
+      if (!p.isNPC) continue;
+      const hand = p.bestHand;
+      // Bad beat: main forte (flush+) qui perd
+      if (hand && hand.type >= 5 && !allWinners.has(p.id)) {
+        recordTiltEvent(p.id, true);
+      }
+      // Bad beat modéré: était devant au turn avec brelan+ et perd
+      if (hand && hand.type >= 3 && !allWinners.has(p.id) && state.communityCards.length >= 4) {
+        recordTiltEvent(p.id, true);
+      }
+    }
+    // Les gagnants perdent du tilt
+    for (const wId of allWinners) {
+      recordTiltEvent(wId, false);
+    }
+  }
 
   // Log — mains détaillées au showdown
   for (const p of activePlayers) {

@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Texas Hold'em Poker V4</title>
+  <title>Texas Hold'em Poker V5</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <!-- Écran de configuration -->
   <div id="setup-screen" class="setup-screen">
     <div class="setup-card">
-      <h1>🃏 Texas Hold'em Poker <span style="font-size:16px;color:#f0d060">V4</span></h1>
+      <h1>🃏 Texas Hold'em Poker <span style="font-size:16px;color:#f0d060">V5</span></h1>
       <p class="setup-subtitle">Multijoueur local — Humains & PNJ — No / Pot / Fixed Limit</p>
 
       <div class="setup-section">
@@ -174,6 +174,15 @@
   </div>
 
   <script src="npcs.js"></script>
+  <script src="strategies/loader.js"></script>
+  <script src="strategies/position.js"></script>
+  <script src="strategies/stack-depth.js"></script>
+  <script src="strategies/board-texture.js"></script>
+  <script src="strategies/multiway.js"></script>
+  <script src="strategies/phase.js"></script>
+  <script src="strategies/opponent-model.js"></script>
+  <script src="strategies/gto.js"></script>
+  <script src="decide.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
