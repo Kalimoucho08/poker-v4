@@ -1297,6 +1297,28 @@ body {
   margin: 8px 0 4px;
 }
 
+/* === SHOWDOWN BOARD (flop / turn / river) === */
+.showdown-board {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.showdown-board-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.showdown-board-label {
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
 /* === SOLO HUMAN CARDS (bigger, always visible) === */
 .player-hole-cards-large {
   display: flex;

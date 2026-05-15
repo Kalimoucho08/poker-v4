@@ -1471,10 +1471,20 @@ function showWinByFoldOverlay(winnerName, amount) {
     html += `<div class="showdown-cards-row">${winner.holeCards.map(c => createCardHTML(c, false, false)).join('')}</div>`;
     html += `</div>`;
   }
-  // Cartes communes déjà tirées
+  // Cartes communes déjà tirées — flop / turn / river
   if (state.communityCards.length > 0) {
     html += `<div class="showdown-section-label">🃏 Cartes sur la table</div>`;
-    html += `<div class="showdown-cards-row">${state.communityCards.map(c => createCardHTML(c, false, false)).join('')}</div>`;
+    html += `<div class="showdown-board">`;
+    if (state.communityCards.length >= 3) {
+      html += `<div class="showdown-board-group"><span class="showdown-board-label">Flop</span><div class="showdown-cards-row">${state.communityCards.slice(0, 3).map(c => createCardHTML(c, false, false)).join('')}</div></div>`;
+    }
+    if (state.communityCards.length >= 4) {
+      html += `<div class="showdown-board-group"><span class="showdown-board-label">Turn</span><div class="showdown-cards-row">${state.communityCards.slice(3, 4).map(c => createCardHTML(c, false, false)).join('')}</div></div>`;
+    }
+    if (state.communityCards.length >= 5) {
+      html += `<div class="showdown-board-group"><span class="showdown-board-label">River</span><div class="showdown-cards-row">${state.communityCards.slice(4, 5).map(c => createCardHTML(c, false, false)).join('')}</div></div>`;
+    }
+    html += `</div>`;
   } else {
     html += `<p style="color:#888;font-size:13px;margin:8px 0">(pré-flop — pas de cartes communes)</p>`;
   }
@@ -1527,9 +1537,21 @@ function showWinnerOverlay(results, activePlayers) {
 
   let html = '';
 
-  // Cartes communes — une seule fois en haut, neutres (pas de marqueur)
-  html += `<div class="showdown-section-label">🃏 Cartes communes</div>`;
-  html += `<div class="showdown-cards-row" style="margin-bottom:16px">${state.communityCards.map(c => createCardHTML(c, false, false)).join('')}</div>`;
+  // Cartes communes — flop / turn / river, comme sur la table
+  if (state.communityCards.length > 0) {
+    html += `<div class="showdown-section-label">🃏 Cartes communes</div>`;
+    html += `<div class="showdown-board">`;
+    if (state.communityCards.length >= 3) {
+      html += `<div class="showdown-board-group"><span class="showdown-board-label">Flop</span><div class="showdown-cards-row">${state.communityCards.slice(0, 3).map(c => createCardHTML(c, false, false)).join('')}</div></div>`;
+    }
+    if (state.communityCards.length >= 4) {
+      html += `<div class="showdown-board-group"><span class="showdown-board-label">Turn</span><div class="showdown-cards-row">${state.communityCards.slice(3, 4).map(c => createCardHTML(c, false, false)).join('')}</div></div>`;
+    }
+    if (state.communityCards.length >= 5) {
+      html += `<div class="showdown-board-group"><span class="showdown-board-label">River</span><div class="showdown-cards-row">${state.communityCards.slice(4, 5).map(c => createCardHTML(c, false, false)).join('')}</div></div>`;
+    }
+    html += `</div>`;
+  }
 
   // Chaque joueur : sa main + ses hole cards avec ★ si utilisées
   html += activePlayers.map(p => {
