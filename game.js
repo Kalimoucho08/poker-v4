@@ -1022,6 +1022,34 @@ function finishBettingRound() {
   state.currentBet = 0;
   state.awaitingAction = false;
 
+  // Si 2+ joueurs sont à tapis et personne ne peut plus agir → dérouler le board
+  const nonFolded = state.players.filter(p => !p.folded);
+  const canStillAct = nonFolded.filter(p => !p.isAllIn && p.chips > 0);
+  if (canStillAct.length === 0 && nonFolded.length >= 2) {
+    // Distribuer les cartes restantes sans nouveau tour d'enchères
+    while (state.phase !== 'river') {
+      if (state.phase === 'preflop') {
+        state.phase = 'flop';
+        state.deck.pop(); // burn
+        for (let i = 0; i < 3; i++) state.communityCards.push(state.deck.pop());
+        addLog(`🃏 Flop : [${formatCards(state.communityCards)}]`);
+      } else if (state.phase === 'flop') {
+        state.phase = 'turn';
+        state.deck.pop();
+        state.communityCards.push(state.deck.pop());
+        addLog(`🃏 Turn : [${formatCards(state.communityCards)}]`);
+      } else if (state.phase === 'turn') {
+        state.phase = 'river';
+        state.deck.pop();
+        state.communityCards.push(state.deck.pop());
+        addLog(`🃏 River : [${formatCards(state.communityCards)}]`);
+      }
+    }
+    state.phase = 'showdown';
+    showdown();
+    return;
+  }
+
   if (countActivePlayers() <= 1) {
     endHand();
     return;
