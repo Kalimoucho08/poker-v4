@@ -1650,8 +1650,8 @@ function initEventListeners() {
         <div class="npc-card-emoji">${npc.emoji}</div>
         <div class="npc-card-name">${npc.name}</div>
         <div class="npc-card-archetype">${npc.archetype}</div>
-        <div class="npc-card-desc">${npc.description}</div>
-        <div class="npc-card-backstory">${npc.backstory}</div>
+        ${anonymousMode ? '' : `<div class="npc-card-desc">${npc.description}</div>`}
+        ${anonymousMode ? '' : `<div class="npc-card-backstory">${npc.backstory}</div>`}
         <div class="npc-card-traits">
           ${Object.entries(npc.traits).map(([k, v]) => `
             <span class="npc-trait"><span class="trait-label">${k}</span><span class="trait-bar"><span class="trait-fill" style="width:${v*100}%"></span></span></span>
@@ -1770,6 +1770,7 @@ function initEventListeners() {
   // Mode anonyme
   document.getElementById('anonymous-mode-checkbox').addEventListener('change', (e) => {
     anonymousMode = e.target.checked;
+    buildNpcGrid(); // rafraîchir la grille pour masquer/afficher les descriptions
   });
 
   document.getElementById('start-game-btn').addEventListener('click', () => {
