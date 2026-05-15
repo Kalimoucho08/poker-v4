@@ -246,12 +246,25 @@ function createCardHTML(card, faceDown = false, small = false, extraClass = '') 
 // --- Gestion des joueurs (setup) ---
 let nextPlayerId = 0;
 
+var anonymousMode = false; // mode anonyme : noms génériques, archétypes cachés
+
 function addPlayer(name, isNPC = false, npcData = null) {
   if (!name.trim()) return false;
   if (state.players.length >= 8) return false;
+
+  // Mode anonyme : nom générique pour les PNJ
+  let displayName = name.trim();
+  let npcName = npcData ? npcData.name : null;
+  let npcEmoji = npcData ? npcData.emoji : null;
+
+  if (isNPC && npcData && anonymousMode) {
+    const letter = String.fromCharCode(65 + state.players.length); // A, B, C...
+    displayName = `Joueur ${letter}`;
+  }
+
   state.players.push({
     id: nextPlayerId++,
-    name: name.trim(),
+    name: displayName,
     chips: state.startingChips,
     holeCards: [],
     currentBet: 0,
@@ -261,9 +274,10 @@ function addPlayer(name, isNPC = false, npcData = null) {
     color: isNPC && npcData ? npcData.color : PLAYER_COLORS[state.players.length % PLAYER_COLORS.length],
     isNPC,
     npcId: npcData ? npcData.id : null,
-    npcName: npcData ? npcData.name : null,
+    npcName: npcData ? npcData.name : null,       // nom réel stocké (affiché dans les logs)
     npcTraits: npcData ? npcData.traits : null,
     npcEmoji: npcData ? npcData.emoji : null,
+    _anonymousName: isNPC && npcData && anonymousMode ? displayName : null,
   });
   return true;
 }
@@ -288,7 +302,7 @@ function renderSetup() {
   const list = document.getElementById('player-list');
   list.innerHTML = state.players.map(p => `
     <li>
-      <span><span class="player-color-dot" style="background:${p.color}"></span>${p.isNPC ? '🤖 ' : '👤 '}${p.name}${p.isNPC ? ` <small style="color:#888">(${p.npcName})</small>` : ''}</span>
+      <span><span class="player-color-dot" style="background:${p.color}"></span>${p.isNPC ? '🤖 ' : '👤 '}${p.name}${(!anonymousMode && p.isNPC && p.npcName) ? ` <small style="color:#888">(${p.npcName})</small>` : (anonymousMode && p.isNPC ? ' <small class="npc-name-generic">(style inconnu)</small>' : '')}</span>
       <button class="remove-player" data-id="${p.id}" title="Retirer">✕</button>
     </span></li>
   `).join('');
@@ -344,14 +358,42 @@ function getSeatPosition(index, total) {
   };
 }
 
+// Retourne { sb, bb } — les indices des joueurs aux blinds (parmi les actifs)
+function getBlindPositions() {
+  const n = state.players.length;
+  const active = state.players.filter(p => p.chips > 0);
+  if (active.length < 2) return { sb: -1, bb: -1 };
+
+  if (active.length === 2) {
+    // Heads-up : dealer=SB, l'autre=BB
+    const sb = state.dealerIndex;
+    const bb = state.players.findIndex((p, i) => i !== sb && p.chips > 0);
+    return { sb, bb };
+  }
+
+  // 3+ joueurs : SB = dealer+1, BB = dealer+2 (premiers actifs après le dealer)
+  let sb = -1, bb = -1;
+  for (let i = 1; i <= n; i++) {
+    const idx = (state.dealerIndex + i) % n;
+    if (state.players[idx].chips > 0) {
+      if (sb === -1) { sb = idx; }
+      else if (bb === -1) { bb = idx; break; }
+    }
+  }
+  return { sb, bb };
+}
+
 function renderSeats() {
   const container = document.getElementById('seats-container');
   const activePlayers = state.players; // Tous les joueurs sont affichés
+  const blinds = state.phase !== 'setup' && state.phase !== 'showdown' ? getBlindPositions() : { sb: -1, bb: -1 };
 
   container.innerHTML = activePlayers.map((p, i) => {
     const pos = getSeatPosition(i, activePlayers.length);
     const isActive = p.id === (state.currentPlayerIndex !== -1 ? state.players[state.currentPlayerIndex]?.id : -1) && state.awaitingAction;
     const isDealer = i === state.dealerIndex;
+    const isSB = i === blinds.sb;
+    const isBB = i === blinds.bb;
 
     let statusClass = '';
     if (p.folded) statusClass = ' folded';
@@ -375,6 +417,8 @@ function renderSeats() {
         <div class="player-info${statusClass}">
           <div class="player-name-row">
             ${isDealer ? '<span class="dealer-badge">D</span>' : ''}
+            ${isSB ? '<span class="blind-badge blind-sb">SB</span>' : ''}
+            ${isBB ? '<span class="blind-badge blind-bb">BB</span>' : ''}
             ${p.isNPC ? `<span class="npc-badge" title="${p.npcName}">🤖</span>` : ''}
             <span style="color:${p.color}">${p.name}</span>
           </div>
@@ -391,6 +435,7 @@ function renderSeats() {
           <div class="player-hole-cards">${cardsHTML}</div>
         ` : ''}
         <div class="player-chip-stack chip-stack" id="player-stack-${p.id}"></div>
+        ${p.currentBet > 0 ? `<div class="bet-stack" id="bet-stack-${p.id}"></div>` : '<div class="bet-stack" id="bet-stack-' + p.id + '"></div>'}
       </div>
     `;
   }).join('');
@@ -399,6 +444,11 @@ function renderSeats() {
   activePlayers.forEach(p => {
     const stack = document.getElementById(`player-stack-${p.id}`);
     if (stack) renderChipStacks(stack, p.chips, 6);
+    // Pile de mise courante devant le joueur
+    const betStack = document.getElementById(`bet-stack-${p.id}`);
+    if (betStack && p.currentBet > 0) {
+      renderChipStacks(betStack, p.currentBet, Math.min(8, Math.ceil(p.currentBet / 20)));
+    }
   });
 
   // Event listeners pour les boutons "Voir mes cartes"
@@ -785,6 +835,15 @@ function postBlinds() {
   state.minRaise = state.bigBlind;
   if (bbPlayer.chips === 0) bbPlayer.isAllIn = true;
   addLog(`${bbPlayer.name} poste la big blind (${bbAmount})`);
+
+  // Animation : jetons des blinds vers les piles de mise
+  setTimeout(() => {
+    const sbStack = document.getElementById(`player-stack-${sbPlayer.id}`);
+    const bbStack = document.getElementById(`player-stack-${bbPlayer.id}`);
+    const potEl = document.getElementById('pot-stack');
+    if (sbStack && potEl) animateChipFly(sbStack, potEl, Math.min(3, Math.ceil(sbAmount / 5)));
+    if (bbStack && potEl) animateChipFly(bbStack, potEl, Math.min(4, Math.ceil(bbAmount / 5)));
+  }, 200);
 }
 
 function findFirstToAct() {
@@ -925,6 +984,17 @@ function isBettingRoundComplete() {
 }
 
 function finishBettingRound() {
+  // Animation : jetons des mises vers le pot
+  const potEl = document.getElementById('pot-stack');
+  if (potEl) {
+    for (const p of state.players) {
+      if (p.currentBet > 0) {
+        const betStack = document.getElementById(`bet-stack-${p.id}`);
+        if (betStack) animateChipFly(betStack, potEl, Math.min(5, Math.ceil(p.currentBet / 10)));
+      }
+    }
+  }
+
   // Collecter toutes les mises dans le pot
   for (const p of state.players) {
     state.pot += p.currentBet;
@@ -1679,6 +1749,29 @@ function initEventListeners() {
   });
 
   // Setup : démarrer la partie
+  // Remplissage aléatoire de PNJ
+  document.getElementById('random-fill-btn').addEventListener('click', () => {
+    // Ajouter d'abord le joueur humain s'il n'existe pas
+    const hasHuman = state.players.some(p => !p.isNPC);
+    if (!hasHuman && state.players.length === 0) {
+      const humanName = document.getElementById('player-name-input').value.trim() || 'Moi';
+      addPlayer(humanName, false);
+    }
+    // Ajouter 3 à 5 PNJ aléatoires
+    const npcCount = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < npcCount && state.players.length < 7; i++) {
+      const template = NPC_TEMPLATES[Math.floor(Math.random() * NPC_TEMPLATES.length)];
+      addPlayer(template.name, true, template);
+    }
+    renderSetup();
+    document.getElementById('start-game-btn').disabled = state.players.length < 2;
+  });
+
+  // Mode anonyme
+  document.getElementById('anonymous-mode-checkbox').addEventListener('change', (e) => {
+    anonymousMode = e.target.checked;
+  });
+
   document.getElementById('start-game-btn').addEventListener('click', () => {
     state.startingChips = parseInt(document.getElementById('starting-chips').value) || 1000;
     state.smallBlind = parseInt(document.getElementById('small-blind').value) || 10;

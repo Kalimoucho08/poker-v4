@@ -108,13 +108,15 @@ function npcDecide(player, state) {
 
   if (!window._npcSilentMode) {
     const positionTag = ctx._positionLabel || '';
-    addLog(`  🤖 ${player.name} (${player.npcName})${positionTag}${tags}: main ~${strengthPct}%, ${action}${thought}`);
+    const showArchetype = (typeof anonymousMode === 'undefined' || !anonymousMode);
+    const npcInfo = showArchetype && player.npcName ? ` (${player.npcName})` : '';
+    addLog(`  🤖 ${player.name}${npcInfo}${positionTag}${tags}: main ~${strengthPct}%, ${action}${thought}`);
   }
 
-  // Catchphrase occasionnelle
+  // Catchphrase occasionnelle (masquée en mode anonyme)
   const template = NPC_TEMPLATES.find(t => t.id === player.npcId);
   if (template && template.catchphrase && (action === 'raise' || (action === 'fold' && toCall > 0 && handStrength > 0.3))) {
-    if (Math.random() < 0.15) {
+    if (Math.random() < 0.15 && (typeof anonymousMode === 'undefined' || !anonymousMode)) {
       addLog(`  💬 ${player.name} : « ${template.catchphrase} »`);
     }
   }

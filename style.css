@@ -462,6 +462,31 @@ body {
   color: #ff6b6b;
 }
 
+/* Options de setup (aléatoire + anonyme) */
+.setup-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  gap: 12px;
+}
+.anon-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #aaa;
+  cursor: pointer;
+  user-select: none;
+}
+.anon-toggle-label input {
+  cursor: pointer;
+}
+.npc-name-generic {
+  color: #888;
+  font-style: italic;
+}
+
 .player-list li .player-color-dot {
   display: inline-block;
   width: 12px;
@@ -672,6 +697,21 @@ body {
 
 .player-chip-stack .chip:first-child {
   margin-top: 0;
+}
+
+/* Piles de mises courantes (devant le joueur, près du tapis) */
+.bet-stack {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+.bet-stack .chip {
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border: 1.5px solid rgba(255,255,255,0.3);
 }
 
 /* Légende des valeurs de jetons */
@@ -907,6 +947,27 @@ body {
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+.blind-badge {
+  width: 20px;
+  height: 16px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  margin: 0 1px;
+}
+.blind-sb {
+  background: #3498db;
+  color: #fff;
+}
+.blind-bb {
+  background: #e74c3c;
+  color: #fff;
 }
 
 .player-chips {
